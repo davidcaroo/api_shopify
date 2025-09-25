@@ -85,36 +85,9 @@ class MetodosAPI
                     "body_html" => $objArr['body_html'],
                     "vendor" => $objArr['vendor'] ?? "API Store",
                     "product_type" => $objArr['product_type'],
-                    "status" => $objArr['status'] ?? "active",
                     "variants" => array($variant)
                 )
             );
-            // Opciones (ej: talla)
-            if (!empty($objArr['options']) && is_array($objArr['options'])) {
-                $productData['product']['options'] = $objArr['options'];
-            }
-
-            // Agregar imágenes si se proporcionan (URL o base64)
-            if (!empty($objArr['images']) && is_array($objArr['images'])) {
-                $images = array();
-                foreach ($objArr['images'] as $img) {
-                    // Si es string, asumimos que es URL
-                    if (is_string($img) && filter_var($img, FILTER_VALIDATE_URL)) {
-                        $images[] = array("src" => $img);
-                    }
-                    // Si es array y tiene src o attachment
-                    elseif (is_array($img)) {
-                        if (isset($img['src']) && filter_var($img['src'], FILTER_VALIDATE_URL)) {
-                            $images[] = array("src" => $img['src']);
-                        } elseif (isset($img['attachment'])) {
-                            $images[] = array("attachment" => $img['attachment']);
-                        }
-                    }
-                }
-                if (!empty($images)) {
-                    $productData['product']['images'] = $images;
-                }
-            }
 
             $response = callAPI('POST', $URL_REST_SHOPIFY . '/admin/api/2023-10/products.json', json_encode($productData));
             $JSON_response = json_decode($response, true);
@@ -127,82 +100,6 @@ class MetodosAPI
                 ));
             } else {
                 $this->response(500, "error", "Error al crear el producto");
-            }
-            return;
-        }
-
-        // Agregar imagen a producto existente (desde URL)
-        if ($_GET['action'] == 'addProductImage') {
-            if (empty($_GET['product_id']) || empty($objArr['image_url'])) {
-                $this->response(422, "error", "Se requiere product_id y image_url");
-                return;
-            }
-
-            $productId = $_GET['product_id'];
-
-            // Validar que la URL de imagen sea válida
-            if (!filter_var($objArr['image_url'], FILTER_VALIDATE_URL)) {
-                $this->response(422, "error", "URL de imagen no válida");
-                return;
-            }
-
-            $imageData = array(
-                "image" => array(
-                    "src" => $objArr['image_url'],
-                    "alt" => $objArr['alt_text'] ?? ""
-                )
-            );
-
-            $response = callAPI('POST', $URL_REST_SHOPIFY . '/admin/api/2023-10/products/' . $productId . '/images.json', json_encode($imageData));
-            $JSON_response = json_decode($response, true);
-
-            if (isset($JSON_response['image'])) {
-                echo json_encode(array(
-                    "ok" => true,
-                    "message" => "Imagen agregada exitosamente",
-                    "image" => $JSON_response['image']
-                ));
-            } else {
-                $this->response(500, "error", "Error al agregar la imagen");
-            }
-            return;
-        }
-
-        // Agregar imagen a producto existente (desde archivo Base64)
-        if ($_GET['action'] == 'uploadProductImage') {
-            if (empty($_GET['product_id']) || empty($objArr['image_base64'])) {
-                $this->response(422, "error", "Se requiere product_id y image_base64");
-                return;
-            }
-
-            $productId = $_GET['product_id'];
-            $imageBase64 = $objArr['image_base64'];
-
-            // Validar formato Base64
-            if (!preg_match('/^data:image\/(jpeg|jpg|png|gif);base64,/', $imageBase64)) {
-                $this->response(422, "error", "Formato de imagen Base64 no válido. Use: data:image/[jpeg|jpg|png|gif];base64,");
-                return;
-            }
-
-            $imageData = array(
-                "image" => array(
-                    "attachment" => $imageBase64,
-                    "alt" => $objArr['alt_text'] ?? "",
-                    "filename" => $objArr['filename'] ?? "uploaded_image.jpg"
-                )
-            );
-
-            $response = callAPI('POST', $URL_REST_SHOPIFY . '/admin/api/2023-10/products/' . $productId . '/images.json', json_encode($imageData));
-            $JSON_response = json_decode($response, true);
-
-            if (isset($JSON_response['image'])) {
-                echo json_encode(array(
-                    "ok" => true,
-                    "message" => "Imagen subida exitosamente",
-                    "image" => $JSON_response['image']
-                ));
-            } else {
-                $this->response(500, "error", "Error al subir la imagen");
             }
             return;
         }
@@ -223,7 +120,7 @@ class MetodosAPI
                 )
             );
 
-            $response = callAPI('POST', $URL_REST_SHOPIFY . '/admin/api/2023-10/discount_codes.json', json_encode($discountData));
+            $response = callAPI('POST', $URL_REST_SHOPIFY . '/admin/api/2023-10/price_rules.json', json_encode($discountData));
             $JSON_response = json_decode($response, true);
 
             if (isset($JSON_response['discount_code'])) {
@@ -332,6 +229,52 @@ class MetodosAPI
             return;
         }
 
+        // Actualizar campos de una variante
+        if ($_GET['action'] == 'updateVariant') {
+            if (empty($_GET['variant_id'])) {
+                $this->response(422, "error", "Se requiere el ID de la variante (variant_id)");
+                return;
+            }
+            $variantId = $_GET['variant_id'];
+            // Construir datos de la variante a actualizar
+            $variantData = array("variant" => $objArr);
+            $response = callAPI('PUT', $URL_REST_SHOPIFY . '/admin/api/2023-10/variants/' . $variantId . '.json', json_encode($variantData));
+            $JSON_response = json_decode($response, true);
+            if (isset($JSON_response['variant'])) {
+                echo json_encode(array(
+                    "ok" => true,
+                    "message" => "Variante actualizada exitosamente",
+                    "variant" => $JSON_response['variant']
+                ));
+            } else {
+                $this->response(500, "error", "Error al actualizar la variante");
+            }
+            return;
+        }
+
+        // Agregar variante a producto existente
+        if ($_GET['action'] == 'addVariant') {
+            if (empty($_GET['id'])) {
+                $this->response(422, "error", "Se requiere el ID del producto");
+                return;
+            }
+            $productId = $_GET['id'];
+            // Construir datos de la variante
+            $variantData = array("variant" => $objArr);
+            $response = callAPI('POST', $URL_REST_SHOPIFY . '/admin/api/2023-10/products/' . $productId . '/variants.json', json_encode($variantData));
+            $JSON_response = json_decode($response, true);
+            if (isset($JSON_response['variant'])) {
+                echo json_encode(array(
+                    "ok" => true,
+                    "message" => "Variante agregada exitosamente",
+                    "variant" => $JSON_response['variant']
+                ));
+            } else {
+                $this->response(500, "error", "Error al agregar la variante");
+            }
+            return;
+        }
+
         $this->response(400, "error", "Acción no válida para PUT");
     }
 
@@ -405,9 +348,35 @@ class MetodosAPI
 
     function MetodoGet($URL_REST_SHOPIFY)
     {
+        // Endpoint para obtener pedidos (orders)
+        if (isset($_GET['action']) && $_GET['action'] == 'getOrders') {
+            // Parámetros opcionales: limit, status, etc.
+            $url = $URL_REST_SHOPIFY . '/admin/api/2023-10/orders.json';
+            $params = array();
+            if (isset($_GET['limit'])) {
+                $params[] = 'limit=' . intval($_GET['limit']);
+            }
+            if (isset($_GET['status'])) {
+                $params[] = 'status=' . urlencode($_GET['status']);
+            }
+            if (!empty($params)) {
+                $url .= '?' . implode('&', $params);
+            }
+            $getDataShopify = callAPI('GET', $url, false);
+            $JSON_getDataShopify = json_decode($getDataShopify, true);
 
-        $obj = json_decode(file_get_contents('php://input'));
-        $objArr = (array)$obj;
+            if (isset($JSON_getDataShopify['orders'])) {
+                echo json_encode([
+                    "ok" => true,
+                    "message" => "orders",
+                    "count" => count($JSON_getDataShopify['orders']),
+                    "orders" => $JSON_getDataShopify['orders'],
+                ]);
+            } else {
+                $this->response(500, "error", "Error al obtener pedidos");
+            }
+            return;
+        }
 
         // Si no hay parámetro action o está vacío, usar rutas estándar de Shopify
         if (!isset($_GET['action']) || empty($_GET['action'])) {
@@ -558,14 +527,14 @@ class MetodosAPI
 
         if ($_GET['action'] == 'getAllDiscounts') {
             // Obtener el conteo de códigos de descuento
-            $getDataShopify = callAPI('GET', $URL_REST_SHOPIFY . '/admin/api/2023-10/discount_codes/count.json', false);
+            $getDataShopify = callAPI('GET', $URL_REST_SHOPIFY . '/admin/api/2023-10/price_rules.json', false);
             $JSON_getDataShopify = json_decode($getDataShopify, true);
 
             echo json_encode(
                 array(
                     "ok" => true,
                     "message" => 'getAllDiscounts',
-                    "discount_count" => $JSON_getDataShopify,
+                    "discounts" => $JSON_getDataShopify['price_rules'],
                 )
             );
             return;
