@@ -59,6 +59,12 @@ class MetodosAPI
             return;
         }
 
+        // Verificar que se proporcione el parámetro action
+        if (!isset($_GET['action'])) {
+            $this->response(400, "error", "Se requiere el parámetro 'action'");
+            return;
+        }
+
         // Crear producto
         if ($_GET['action'] == 'createProduct') {
             // Validar datos requeridos
@@ -233,6 +239,12 @@ class MetodosAPI
             return;
         }
 
+        // Verificar que se proporcione el parámetro action
+        if (!isset($_GET['action'])) {
+            $this->response(400, "error", "Se requiere el parámetro 'action'");
+            return;
+        }
+
         // Actualizar producto
         if ($_GET['action'] == 'updateProduct') {
             // Validar que se proporcione el ID del producto
@@ -312,6 +324,12 @@ class MetodosAPI
 
     function MetodoDelete($URL_REST_SHOPIFY)
     {
+        // Verificar que se proporcione el parámetro action
+        if (!isset($_GET['action'])) {
+            $this->response(400, "error", "Se requiere el parámetro 'action'");
+            return;
+        }
+
         // Eliminar producto
         if ($_GET['action'] == 'deleteProduct') {
             if (empty($_GET['id'])) {
@@ -377,6 +395,93 @@ class MetodosAPI
 
         $obj = json_decode(file_get_contents('php://input'));
         $objArr = (array)$obj;
+
+        // Si no hay parámetro action o está vacío, usar rutas estándar de Shopify
+        if (!isset($_GET['action']) || empty($_GET['action'])) {
+
+            // Si hay un ID específico en la URL, obtener ese producto
+            if (isset($_GET['id'])) {
+                $productId = $_GET['id'];
+                $getDataShopify = callAPI('GET', $URL_REST_SHOPIFY . '/admin/api/2023-10/products/' . $productId . '.json', false);
+                $JSON_getDataShopify = json_decode($getDataShopify, true);
+
+                if (isset($JSON_getDataShopify['product'])) {
+                    echo json_encode(
+                        array(
+                            "ok" => true,
+                            "message" => 'product',
+                            "product" => $JSON_getDataShopify['product'],
+                        )
+                    );
+                } else {
+                    $this->response(404, "error", "Producto no encontrado");
+                }
+                return;
+            }
+
+            // Obtener productos (ruta estándar de Shopify)
+            $url = $URL_REST_SHOPIFY . '/admin/api/2023-10/products.json';
+            $params = array();
+
+            // Parámetros opcionales
+            if (isset($_GET['ids'])) {
+                $params[] = 'ids=' . urlencode($_GET['ids']);
+            }
+            if (isset($_GET['limit'])) {
+                $limit = min(intval($_GET['limit']), 250); // Shopify límite máximo
+                $params[] = 'limit=' . $limit;
+            } else {
+                $params[] = 'limit=50'; // Límite por defecto
+            }
+            if (isset($_GET['status'])) {
+                $params[] = 'status=' . urlencode($_GET['status']);
+            }
+            if (isset($_GET['product_type'])) {
+                $params[] = 'product_type=' . urlencode($_GET['product_type']);
+            }
+            if (isset($_GET['vendor'])) {
+                $params[] = 'vendor=' . urlencode($_GET['vendor']);
+            }
+            if (isset($_GET['since_id'])) {
+                $params[] = 'since_id=' . urlencode($_GET['since_id']);
+            }
+            if (isset($_GET['created_at_min'])) {
+                $params[] = 'created_at_min=' . urlencode($_GET['created_at_min']);
+            }
+            if (isset($_GET['created_at_max'])) {
+                $params[] = 'created_at_max=' . urlencode($_GET['created_at_max']);
+            }
+            if (isset($_GET['updated_at_min'])) {
+                $params[] = 'updated_at_min=' . urlencode($_GET['updated_at_min']);
+            }
+            if (isset($_GET['updated_at_max'])) {
+                $params[] = 'updated_at_max=' . urlencode($_GET['updated_at_max']);
+            }
+            if (isset($_GET['fields'])) {
+                $params[] = 'fields=' . urlencode($_GET['fields']);
+            }
+
+            if (!empty($params)) {
+                $url .= '?' . implode('&', $params);
+            }
+
+            $getDataShopify = callAPI('GET', $url, false);
+            $JSON_getDataShopify = json_decode($getDataShopify, true);
+
+            if (isset($JSON_getDataShopify['products'])) {
+                echo json_encode(
+                    array(
+                        "ok" => true,
+                        "message" => 'products',
+                        "count" => count($JSON_getDataShopify['products']),
+                        "products" => $JSON_getDataShopify['products'],
+                    )
+                );
+            } else {
+                $this->response(500, "error", "Error al obtener productos");
+            }
+            return;
+        }
 
         if ($_GET['action'] == 'getAllProducts') {
             // Parámetros opcionales para paginación y filtros
