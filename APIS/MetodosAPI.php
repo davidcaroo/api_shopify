@@ -67,6 +67,18 @@ class MetodosAPI
                 return;
             }
 
+            // Manejo de variantes y opciones
+            $variant = array(
+                "price" => $objArr['price'] ?? "0.00",
+                "inventory_quantity" => $objArr['inventory_quantity'] ?? 0,
+                "sku" => $objArr['sku'] ?? "",
+                "inventory_management" => "shopify"
+            );
+            // Si se recibe option1 (ej: talla)
+            if (!empty($objArr['option1'])) {
+                $variant['option1'] = $objArr['option1'];
+            }
+
             $productData = array(
                 "product" => array(
                     "title" => $objArr['title'],
@@ -74,15 +86,13 @@ class MetodosAPI
                     "vendor" => $objArr['vendor'] ?? "API Store",
                     "product_type" => $objArr['product_type'],
                     "status" => $objArr['status'] ?? "active",
-                    "variants" => array(
-                        array(
-                            "price" => $objArr['price'] ?? "0.00",
-                            "inventory_quantity" => $objArr['inventory_quantity'] ?? 0,
-                            "sku" => $objArr['sku'] ?? ""
-                        )
-                    )
+                    "variants" => array($variant)
                 )
             );
+            // Opciones (ej: talla)
+            if (!empty($objArr['options']) && is_array($objArr['options'])) {
+                $productData['product']['options'] = $objArr['options'];
+            }
 
             // Agregar imágenes si se proporcionan (URL o base64)
             if (!empty($objArr['images']) && is_array($objArr['images'])) {
