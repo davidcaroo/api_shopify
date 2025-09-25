@@ -59,14 +59,8 @@ class MetodosAPI
             return;
         }
 
-        // Verificar que se proporcione el parámetro action
-        if (!isset($_GET['action'])) {
-            $this->response(400, "error", "Se requiere el parámetro 'action'");
-            return;
-        }
-
-        // Crear producto
-        if ($_GET['action'] == 'createProduct') {
+        // Permitir crear producto sin parámetro action (estilo Shopify REST)
+        if (!isset($_GET['action']) || empty($_GET['action']) || $_GET['action'] == 'createProduct') {
             // Validar datos requeridos
             if (empty($objArr['title']) || empty($objArr['body_html']) || empty($objArr['product_type'])) {
                 $this->response(422, "error", "Faltan campos requeridos: title, body_html, product_type");
@@ -90,12 +84,21 @@ class MetodosAPI
                 )
             );
 
-            // Agregar imágenes si se proporcionan URLs
+            // Agregar imágenes si se proporcionan (URL o base64)
             if (!empty($objArr['images']) && is_array($objArr['images'])) {
                 $images = array();
-                foreach ($objArr['images'] as $imageUrl) {
-                    if (filter_var($imageUrl, FILTER_VALIDATE_URL)) {
-                        $images[] = array("src" => $imageUrl);
+                foreach ($objArr['images'] as $img) {
+                    // Si es string, asumimos que es URL
+                    if (is_string($img) && filter_var($img, FILTER_VALIDATE_URL)) {
+                        $images[] = array("src" => $img);
+                    }
+                    // Si es array y tiene src o attachment
+                    elseif (is_array($img)) {
+                        if (isset($img['src']) && filter_var($img['src'], FILTER_VALIDATE_URL)) {
+                            $images[] = array("src" => $img['src']);
+                        } elseif (isset($img['attachment'])) {
+                            $images[] = array("attachment" => $img['attachment']);
+                        }
                     }
                 }
                 if (!empty($images)) {
