@@ -1,0 +1,29 @@
+# Variables de entorno
+.env
+
+# Archivos de log
+error_log
+*.log
+
+# Carpeta vendor (dependencias de Composer)
+/vendor/
+
+# Archivos temporales
+*.tmp
+*.temp
+
+# Archivos de IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# Archivos de configuración local
+config.local.php
+
+# Imágenes (mantener carpeta pero ignorar contenido)
+/imgs/*

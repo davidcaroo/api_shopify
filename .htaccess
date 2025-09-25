@@ -1,0 +1,52 @@
+
+# Configuración Apache para API Shopify
+# Mejoras de seguridad y rendimiento
+
+# Habilitar reescritura de URLs
+RewriteEngine On
+
+# Bloquear acceso a archivos sensibles
+<FilesMatch "^\.env">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+<FilesMatch "^\.git">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+<FilesMatch "composer\.(json|lock)">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Configurar headers CORS para la API
+<IfModule mod_headers.c>
+    Header always set Access-Control-Allow-Origin "*"
+    Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+    Header always set Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+    Header always set Access-Control-Max-Age "3600"
+</IfModule>
+
+# Manejar preflight requests (OPTIONS)
+RewriteCond %{REQUEST_METHOD} OPTIONS
+RewriteRule ^(.*)$ $1 [R=200,L]
+
+# Permitir acceso a imágenes
+RewriteRule ^imgs/([a-z0-9A-Z_@.-]*) - [QSA,L]
+
+# Redirección amigable para acciones de API
+RewriteRule ^([a-zA-Z_-]*)$ index.php?action=$1 [QSA,L]
+
+# Configuración de seguridad adicional
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+    Header always set X-XSS-Protection "1; mode=block"
+</IfModule>
+
+# Bloquear acceso directo a carpetas sensibles
+Options -Indexes
+RewriteRule ^([a-zA-Z_-]*)/([a-z0-9A-Z_@.-]*)/([a-z0-9A-Z_-]*) index.php?action=$1&data1=$2&data2=$3 [L,QSA]
+RewriteRule ^([a-zA-Z_-]*)/([a-z0-9A-Z_@.-]*) index.php?action=$1&data1=$2 [L,QSA]
