@@ -84,6 +84,19 @@ class MetodosAPI
                 )
             );
 
+            // Agregar imágenes si se proporcionan URLs
+            if (!empty($objArr['images']) && is_array($objArr['images'])) {
+                $images = array();
+                foreach ($objArr['images'] as $imageUrl) {
+                    if (filter_var($imageUrl, FILTER_VALIDATE_URL)) {
+                        $images[] = array("src" => $imageUrl);
+                    }
+                }
+                if (!empty($images)) {
+                    $productData['product']['images'] = $images;
+                }
+            }
+
             $response = callAPI('POST', $URL_REST_SHOPIFY . '/admin/api/2023-10/products.json', json_encode($productData));
             $JSON_response = json_decode($response, true);
 
@@ -95,6 +108,82 @@ class MetodosAPI
                 ));
             } else {
                 $this->response(500, "error", "Error al crear el producto");
+            }
+            return;
+        }
+
+        // Agregar imagen a producto existente (desde URL)
+        if ($_GET['action'] == 'addProductImage') {
+            if (empty($_GET['product_id']) || empty($objArr['image_url'])) {
+                $this->response(422, "error", "Se requiere product_id y image_url");
+                return;
+            }
+
+            $productId = $_GET['product_id'];
+
+            // Validar que la URL de imagen sea válida
+            if (!filter_var($objArr['image_url'], FILTER_VALIDATE_URL)) {
+                $this->response(422, "error", "URL de imagen no válida");
+                return;
+            }
+
+            $imageData = array(
+                "image" => array(
+                    "src" => $objArr['image_url'],
+                    "alt" => $objArr['alt_text'] ?? ""
+                )
+            );
+
+            $response = callAPI('POST', $URL_REST_SHOPIFY . '/admin/api/2023-10/products/' . $productId . '/images.json', json_encode($imageData));
+            $JSON_response = json_decode($response, true);
+
+            if (isset($JSON_response['image'])) {
+                echo json_encode(array(
+                    "ok" => true,
+                    "message" => "Imagen agregada exitosamente",
+                    "image" => $JSON_response['image']
+                ));
+            } else {
+                $this->response(500, "error", "Error al agregar la imagen");
+            }
+            return;
+        }
+
+        // Agregar imagen a producto existente (desde archivo Base64)
+        if ($_GET['action'] == 'uploadProductImage') {
+            if (empty($_GET['product_id']) || empty($objArr['image_base64'])) {
+                $this->response(422, "error", "Se requiere product_id y image_base64");
+                return;
+            }
+
+            $productId = $_GET['product_id'];
+            $imageBase64 = $objArr['image_base64'];
+
+            // Validar formato Base64
+            if (!preg_match('/^data:image\/(jpeg|jpg|png|gif);base64,/', $imageBase64)) {
+                $this->response(422, "error", "Formato de imagen Base64 no válido. Use: data:image/[jpeg|jpg|png|gif];base64,");
+                return;
+            }
+
+            $imageData = array(
+                "image" => array(
+                    "attachment" => $imageBase64,
+                    "alt" => $objArr['alt_text'] ?? "",
+                    "filename" => $objArr['filename'] ?? "uploaded_image.jpg"
+                )
+            );
+
+            $response = callAPI('POST', $URL_REST_SHOPIFY . '/admin/api/2023-10/products/' . $productId . '/images.json', json_encode($imageData));
+            $JSON_response = json_decode($response, true);
+
+            if (isset($JSON_response['image'])) {
+                echo json_encode(array(
+                    "ok" => true,
+                    "message" => "Imagen subida exitosamente",
+                    "image" => $JSON_response['image']
+                ));
+            } else {
+                $this->response(500, "error", "Error al subir la imagen");
             }
             return;
         }
